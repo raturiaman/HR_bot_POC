@@ -1,0 +1,10 @@
+streamlit
+pypdf
+PyPDF2
+pinecone==2.2.1
+openai
+langchain
+langchain-community
+langchain-core
+langchain-experimental
+deep-translator
