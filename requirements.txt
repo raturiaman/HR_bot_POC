@@ -1,11 +1,10 @@
+streamlit
 pypdf
 PyPDF2
-streamlit
-pinecone-client
+pinecone
 openai
 langchain
 langchain-community
 langchain-core
 langchain-experimental
-langchain-openai
-langchain-pinecone
+deep-translator
