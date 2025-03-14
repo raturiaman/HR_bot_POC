@@ -1,6 +1,7 @@
 import streamlit as st
-from pinecone import Pinecone  # Pinecone client import
-import rag  # Importing the RAG module
+from pinecone import Pinecone
+import rag
+from googletrans import Translator  # For translation
 
 ############################################
 #             SETTINGS                    #
@@ -8,7 +9,7 @@ import rag  # Importing the RAG module
 api_key_openai = st.secrets.get("OPENAI_API_KEY", "")
 api_key_pinecone = st.secrets.get("PINECONE_API_KEY", "")
 directory = st.secrets.get("directory", "./pdfs")
-index_name = "hr-policies-index"  # Updated to match new configuration
+index_name = "hr-policies-index"
 
 if not api_key_openai or not api_key_pinecone:
     raise ValueError("Missing OpenAI or Pinecone API key. Check secrets.toml or environment variables.")
@@ -20,21 +21,43 @@ if "messages" not in st.session_state:
 ############################################
 #       HELPER FUNCTIONS                   #
 ############################################
-def generate_response(input_data_query):
+def translate_text(text, dest_language):
+    """Translates text to the selected language."""
+    translator = Translator()
+    translation = translator.translate(text, dest=dest_language)
+    return translation.text
+
+def generate_response(input_data_query, language="en"):
     """
     Calls the RAG module to process the query and return the response.
+    Optionally translates the query and response.
     """
-    chain = rag.ask_model()
-    output = rag.perform_query(chain, input_data_query)
-    return output
+    try:
+        if language != "en":
+            input_data_query = translate_text(input_data_query, language)
+        chain = rag.ask_model()
+        output = rag.perform_query(chain, input_data_query)
+        if language != "en":
+            output = translate_text(output, "en")  # Translate response back to English
+        return output
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
+        return {"answer": "Sorry, I couldn't process your request. Please try again later."}
 
 def display_messages():
-    """
-    Displays the conversation in the Streamlit UI.
-    """
-    for message in st.session_state["messages"]:
-        role = "user" if message["role"] == "user" else "assistant"
-        st.chat_message(role).write(message["content"])
+    """Displays the conversation in the Streamlit UI."""
+    chat_placeholder = st.empty()
+    with chat_placeholder.container():
+        for message in st.session_state["messages"]:
+            role = "user" if message["role"] == "user" else "assistant"
+            st.chat_message(role).write(message["content"])
+
+def handle_initial_prompt(prompt_key):
+    """Handles form button clicks."""
+    st.session_state["messages"].append({"role": "user", "content": initial_prompts[prompt_key]})
+    ans = generate_response(initial_prompts[prompt_key])
+    st.session_state["messages"].append({"role": "assistant", "content": ans["answer"]})
+    display_messages()
 
 ############################################
 #            STREAMLIT UI                  #
@@ -63,31 +86,25 @@ initial_prompts = {
 
 placeholder = st.empty()
 
-with placeholder.form(key='my_form'):
+# Add a "Clear Chat" button
+if st.button("Clear Chat"):
+    st.session_state["messages"] = []
+    display_messages()
+
+# Improve initial prompts layout
+with placeholder.container():
+    st.write("### Quick Prompts")
     col1, col2 = st.columns(2)
     with col1:
-        firstQ = st.form_submit_button(label=initial_prompts["policy_scope"])
-        secondQ = st.form_submit_button(label=initial_prompts["report_violation"])
+        if st.button(initial_prompts["policy_scope"]):
+            handle_initial_prompt("policy_scope")
+        if st.button(initial_prompts["report_violation"]):
+            handle_initial_prompt("report_violation")
     with col2:
-        thirdQ = st.form_submit_button(label=initial_prompts["training_details"])
-        fourthQ = st.form_submit_button(label=initial_prompts["last_update"])
-
-def handle_initial_prompt(prompt_key):
-    """Handles form button clicks."""
-    st.session_state["messages"].append({"role": "user", "content": initial_prompts[prompt_key]})
-    ans = generate_response(initial_prompts[prompt_key])
-    st.session_state["messages"].append({"role": "assistant", "content": ans["answer"]})
-    display_messages()
-    placeholder.empty()
-
-if firstQ:
-    handle_initial_prompt("policy_scope")
-if secondQ:
-    handle_initial_prompt("report_violation")
-if thirdQ:
-    handle_initial_prompt("training_details")
-if fourthQ:
-    handle_initial_prompt("last_update")
+        if st.button(initial_prompts["training_details"]):
+            handle_initial_prompt("training_details")
+        if st.button(initial_prompts["last_update"]):
+            handle_initial_prompt("last_update")
 
 ############################################
 #        CHAT INPUT FUNCTION               #
@@ -99,11 +116,10 @@ def user_query():
     prompt = st.chat_input(f"Ask your question in {selected_language}...")
     if prompt:
         st.session_state["messages"].append({"role": "user", "content": prompt})
-        answer = generate_response(prompt)
+        answer = generate_response(prompt, selected_language.lower())
         st.session_state["messages"].append({"role": "assistant", "content": answer["answer"]})
-        st.session_state["messages"] = st.session_state["messages"][-100:]  # Limit messages for memory management
+        st.session_state["messages"] = st.session_state["messages"][-100:]  # Limit messages
         display_messages()
-        placeholder.empty()
 
 # Listen for user-typed questions
 user_query()

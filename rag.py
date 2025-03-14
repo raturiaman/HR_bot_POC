@@ -1,9 +1,8 @@
-import streamlit as st
 import os
-from pinecone import Pinecone, ServerlessSpec  # Corrected import
+from pinecone import Pinecone, ServerlessSpec
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings  # Use HuggingFace for custom embeddings
 from langchain_community.vectorstores import Pinecone as LangChainPinecone
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import PromptTemplate
@@ -13,19 +12,18 @@ from langchain.llms import OpenAI
 ############################################
 #          PINECONE SETTINGS              #
 ############################################
-api_key_openai = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
-api_key_pinecone = st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY"))
-pinecone_env = st.secrets.get("PINECONE_ENVIRONMENT", "us-east-1")
-directory = st.secrets.get("directory", os.getenv("PDF_DIRECTORY", "./pdfs"))
-index_name = st.secrets.get("index_name", "hr-policies-index")
+api_key_openai = os.getenv("OPENAI_API_KEY")
+api_key_pinecone = os.getenv("PINECONE_API_KEY")
+pinecone_env = os.getenv("PINECONE_ENVIRONMENT", "us-east-1")
+directory = os.getenv("PDF_DIRECTORY", "./pdfs")
+index_name = os.getenv("PINECONE_INDEX_NAME", "hr-policies-index")
 
 if not api_key_openai or not api_key_pinecone:
-    raise ValueError("Missing OpenAI or Pinecone API key. Check secrets.toml or environment variables.")
+    raise ValueError("Missing OpenAI or Pinecone API key. Check environment variables.")
 
 ############################################
 #          INITIALIZE PINECONE            #
 ############################################
-# Create a Pinecone instance
 pc = Pinecone(api_key=api_key_pinecone)
 
 # Ensure index exists
@@ -33,24 +31,29 @@ existing_indexes = [index_info.name for index_info in pc.list_indexes()]
 if index_name not in existing_indexes:
     pc.create_index(
         name=index_name,
-        dimension=1024,  # Updated to match Llama embeddings
+        dimension=1024,  # Match the dimension of llama-text-embed-v2
         metric="cosine",
         spec=ServerlessSpec(
             cloud="aws",
-            region=pinecone_env  # Ensure the correct region is used
+            region=pinecone_env
         )
     )
 
-# Correctly fetch the Pinecone index
-index = pc.Index(index_name)  # ✅ Correct way to get the index instance
+# Fetch the Pinecone index
+index = pc.Index(index_name)
 
 ############################################
 #        DOCUMENT PROCESSING FUNCTIONS    #
 ############################################
 def read_docs(directory):
     """Load all PDFs in the given directory."""
+    if not os.path.exists(directory):
+        raise ValueError(f"Directory '{directory}' does not exist.")
     loader = PyPDFDirectoryLoader(directory)
-    return loader.load()
+    documents = loader.load()
+    if not documents:
+        raise ValueError(f"No PDFs found in directory '{directory}'.")
+    return documents
 
 def chunk_docs(documents, chunk_size=800, chunk_overlap=50):
     """Split documents into smaller chunks for embedding."""
@@ -61,8 +64,9 @@ def chunk_docs(documents, chunk_size=800, chunk_overlap=50):
     return splitter.split_documents(documents)
 
 def get_embeddings():
-    """Return OpenAI embeddings for text encoding (dimension=1024 for llama-text-embed-v2)."""
-    return OpenAIEmbeddings(model="llama-text-embed-v2")
+    """Return embeddings for text encoding using llama-text-embed-v2."""
+    # Use HuggingFace embeddings for custom models
+    return HuggingFaceEmbeddings(model_name="llama-text-embed-v2")
 
 ############################################
 #         MEMORY INITIALIZATION           #
@@ -106,7 +110,7 @@ def create_chain(vectorstore, memory):
         llm=OpenAI(),
         retriever=vectorstore.as_retriever(search_kwargs={"k": 3}),
         memory=memory,
-        combine_docs_chain_kwargs=dict(prompt=qa_prompt),
+        chain_type_kwargs={"prompt": qa_prompt},
         verbose=True
     )
     return chain
@@ -122,28 +126,35 @@ def ask_model():
     4. Create or update the index with from_documents.
     5. Return a retrieval chain.
     """
-    # Load & chunk
-    docs = read_docs(directory)
-    chunks = chunk_docs(docs)
+    try:
+        # Load & chunk
+        docs = read_docs(directory)
+        chunks = chunk_docs(docs)
 
-    # Embeddings
-    embeddings = get_embeddings()
+        # Embeddings
+        embeddings = get_embeddings()
 
-    # Build LangChain Pinecone vectorstore (CORRECTED)
-    vectorstore = LangChainPinecone(
-        index_name=index_name,  # ✅ Correct: Passing the index name
-        embedding=embeddings
-    )
+        # Build LangChain Pinecone vectorstore
+        vectorstore = LangChainPinecone.from_documents(
+            documents=chunks,
+            embedding=embeddings,
+            index=index
+        )
 
-    # Create chain with memory
-    memory = get_memory()
-    chain = create_chain(vectorstore, memory)
-    return chain
+        # Create chain with memory
+        memory = get_memory()
+        chain = create_chain(vectorstore, memory)
+        return chain
+    except Exception as e:
+        raise RuntimeError(f"Failed to initialize the model: {e}")
 
 ############################################
 #        PERFORM RETRIEVAL FUNCTION       #
 ############################################
 def perform_query(chain, query):
     """Call the chain with the user's query; returns the chain's result."""
-    result = chain({"question": query})
-    return result
+    try:
+        result = chain({"question": query})
+        return result
+    except Exception as e:
+        raise RuntimeError(f"Failed to perform query: {e}")
