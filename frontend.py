@@ -114,4 +114,4 @@ user_query()
 # Add a "Clear Chat" button
 if st.button("Clear Chat"):
     st.session_state["messages"] = []
-    st.experimental_rerun()
+    st.rerun()  # Updated from st.experimental_rerun() to st.rerun()
