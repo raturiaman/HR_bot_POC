@@ -2,7 +2,7 @@ import os
 from pinecone import Pinecone, ServerlessSpec
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings  # Use HuggingFace for custom embeddings
+from langchain_community.embeddings import OpenAIEmbeddings  # Use OpenAI embeddings
 from langchain_community.vectorstores import Pinecone as LangChainPinecone
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import PromptTemplate
@@ -31,7 +31,7 @@ existing_indexes = [index_info.name for index_info in pc.list_indexes()]
 if index_name not in existing_indexes:
     pc.create_index(
         name=index_name,
-        dimension=1024,  # Match the dimension of llama-text-embed-v2
+        dimension=1536,  # Match the dimension of OpenAI embeddings
         metric="cosine",
         spec=ServerlessSpec(
             cloud="aws",
@@ -64,9 +64,8 @@ def chunk_docs(documents, chunk_size=800, chunk_overlap=50):
     return splitter.split_documents(documents)
 
 def get_embeddings():
-    """Return embeddings for text encoding using llama-text-embed-v2."""
-    # Use HuggingFace embeddings for custom models
-    return HuggingFaceEmbeddings(model_name="llama-text-embed-v2")
+    """Return OpenAI embeddings for text encoding."""
+    return OpenAIEmbeddings(model="text-embedding-ada-002")  # Use OpenAI embeddings
 
 ############################################
 #         MEMORY INITIALIZATION           #
