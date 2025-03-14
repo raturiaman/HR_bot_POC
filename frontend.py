@@ -1,3 +1,5 @@
+import os  # Add this import
+
 import streamlit as st
 from pinecone import Pinecone
 import rag  # Importing the RAG module

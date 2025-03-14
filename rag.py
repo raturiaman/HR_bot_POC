@@ -1,3 +1,4 @@
+import os  # Add this import
 import streamlit as st
 from pinecone import Pinecone, ServerlessSpec
 from langchain_community.document_loaders import PyPDFDirectoryLoader
