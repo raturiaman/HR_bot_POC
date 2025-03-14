@@ -8,7 +8,7 @@ import rag  # Importing the RAG module
 api_key_openai = st.secrets.get("OPENAI_API_KEY", "")
 api_key_pinecone = st.secrets.get("PINECONE_API_KEY", "")
 directory = st.secrets.get("directory", "./pdfs")
-index_name = "hr-policies-index-new"  # Updated index name
+index_name = "hr-policies-index"  # Updated to match new configuration
 
 if not api_key_openai or not api_key_pinecone:
     raise ValueError("Missing OpenAI or Pinecone API key. Check secrets.toml or environment variables.")

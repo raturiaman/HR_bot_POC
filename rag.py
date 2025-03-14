@@ -23,14 +23,14 @@ from pinecone import Pinecone, Index
 #  PINECONE_API_KEY = "..."
 #  PINECONE_ENVIRONMENT = "us-east-1"
 #  directory = "./pdfs"
-#  index_name = "hr-policies-index-new"
+#  index_name = "hr-policies-index"
 
 # ---------- Settings (API Keys from Streamlit Secrets) ---------
 api_key_openai = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
 api_key_pinecone = st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY"))
 pinecone_env = st.secrets.get("PINECONE_ENVIRONMENT", "us-east-1")
 directory = st.secrets.get("directory", os.getenv("PDF_DIRECTORY", "./pdfs"))
-index_name = st.secrets.get("index_name", "hr-policies-index-new")
+index_name = st.secrets.get("index_name", "hr-policies-index")
 
 # Ensure API keys are set
 if not api_key_openai or not api_key_pinecone:
@@ -59,8 +59,8 @@ def chunk_docs(documents, chunk_size=800, chunk_overlap=50):
     return splitter.split_documents(documents)
 
 def get_embeddings():
-    """Return OpenAI embeddings for text encoding (dimension=1536)."""
-    return OpenAIEmbeddings()
+    """Return OpenAI embeddings for text encoding (dimension=1024 for llama-text-embed-v2)."""
+    return OpenAIEmbeddings(model="llama-text-embed-v2")
 
 ############################################
 #         MEMORY INITIALIZATION           #
