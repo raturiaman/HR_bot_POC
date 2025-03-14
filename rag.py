@@ -29,7 +29,8 @@ if not api_key_openai or not api_key_pinecone:
 pc = Pinecone(api_key=api_key_pinecone)
 
 # Ensure index exists
-if index_name not in pc.list_indexes().names():
+existing_indexes = [index_info.name for index_info in pc.list_indexes()]
+if index_name not in existing_indexes:
     pc.create_index(
         name=index_name,
         dimension=1024,  # Updated to match Llama embeddings
