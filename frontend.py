@@ -1,17 +1,14 @@
 """
-This is a RAG model which uses BeyondKey's Human Rights Policy,
-now supporting multilingual answers using deep-translator.
-
-Created By:
-Create Date:
-Last Updated Date:
+This is a retrieval-augmented QA (RAG) model for "Human Rights Policy".
+It uses Pinecone for vector search, OpenAI for LLM/embeddings, and 
+deep-translator for multilingual answers (if desired).
 """
 
 import streamlit as st
 from pinecone import Pinecone
-import rag  # The RAG module you created
+import rag  # Our backend logic
 
-# (NEW) Use deep-translator instead of googletrans
+# Optional: For multilingual translation
 from deep_translator import GoogleTranslator, single_detection
 
 # ----------------- Setting -------------------------
@@ -21,14 +18,15 @@ directory = st.secrets.get("directory", "./pdfs")
 index_name = "hr-policies-index"
 
 if not api_key_openai or not api_key_pinecone:
-    raise ValueError("Missing OpenAI or Pinecone API key.")
+    raise ValueError("Missing OpenAI or Pinecone API key. Check secrets.toml or environment variables.")
 
-messages = st.empty()
-
+# Store messages for the conversation display
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
 
-# 1) Language codes for the output language
+st.title("Human Rights Policy Chatbot (Strict Policy Answers)")
+
+# 1) Language codes for the output language (optional)
 languages = {
     "English": "en",
     "Hindi": "hi",
@@ -38,38 +36,34 @@ languages = {
     "Japanese": "ja",
     "German": "de"
 }
+selected_language = st.selectbox("Select the output language:", list(languages.keys()))
 
-st.title("Human Rights Policy Chatbot (Multilingual Answers with deep-translator)")
-
-# 2) Let user pick output language
-selected_language = st.selectbox(
-    "Select output language for answers:", 
-    list(languages.keys())
-)
-
-########################
-#  Helper Functions    #
-########################
-def generate_response(input_data_query: str):
-    """
-    Calls the RAG module: builds chain, gets result from chain for the user query.
-    """
-    chain = rag.ask_model()
-    output = rag.perform_query(chain, input_data_query)
-    return output
-
+#######################
+#    Helper Methods   #
+#######################
 def display_messages():
     """
-    Renders the conversation from st.session_state["messages"] in Streamlit.
+    Renders the conversation from st.session_state["messages"] in the Streamlit UI.
     """
-    for message in st.session_state["messages"]:
-        role = "user" if message["role"] == "user" else "assistant"
-        st.chat_message(role).write(message["content"])
+    for msg in st.session_state["messages"]:
+        role = "user" if msg["role"] == "user" else "assistant"
+        st.chat_message(role).write(msg["content"])
 
-########################
-#   Quick test prompts #
-########################
-initial_prompts = {
+def generate_response(query_text: str) -> dict:
+    """
+    1) Build or reuse the chain from rag.py
+    2) Provide the query to the chain
+    3) Return the result
+    """
+    chain = rag.ask_model()  # Rebuild or reuse
+    output = rag.perform_query(chain, query_text)
+    return output  # e.g. {"answer": "some text"}
+
+
+#######################
+# Quick Testing Buttons
+#######################
+sample_prompts = {
     "policy_scope":  "What is covered in the Human Rights Policy?",
     "report_violation": "How can employees report a violation of this Human Rights Policy?",
     "training_details": "Does the policy talk about training employees on human rights?",
@@ -78,89 +72,86 @@ initial_prompts = {
 
 placeholder = st.empty()
 
-with placeholder.form(key='my_form'):
+with placeholder.form("sample_questions"):
     col1, col2 = st.columns(2)
     with col1:
-        firstQ = st.form_submit_button(label=initial_prompts["policy_scope"])
-        secondQ = st.form_submit_button(label=initial_prompts["report_violation"])
+        btn_scope = st.form_submit_button(label=sample_prompts["policy_scope"])
+        btn_report = st.form_submit_button(label=sample_prompts["report_violation"])
     with col2:
-        thirdQ = st.form_submit_button(label=initial_prompts["training_details"])
-        fourthQ = st.form_submit_button(label=initial_prompts["last_update"])
+        btn_training = st.form_submit_button(label=sample_prompts["training_details"])
+        btn_update = st.form_submit_button(label=sample_prompts["last_update"])
 
-def handle_initial_prompt(prompt_key):
-    # We'll assume these are in English, so no pre-translation needed.
-    st.session_state["messages"].append({"role": "user", "content": initial_prompts[prompt_key]})
-    
-    # Query chain with the English prompt
-    ans = generate_response(initial_prompts[prompt_key])
-    
-    # Translate from English to the selected language
+def handle_prompt_click(prompt_key):
+    """
+    Push the sample prompt to conversation, get the chain's answer,
+    then translate the final answer to the user-selected language.
+    """
+    st.session_state["messages"].append({"role": "user", "content": sample_prompts[prompt_key]})
+    raw_result = generate_response(sample_prompts[prompt_key])
+    english_answer = raw_result["answer"]
+
+    # Translate answer from English to selected language
     final_answer = GoogleTranslator(
-        source='en', 
+        source='en',
         target=languages[selected_language]
-    ).translate(ans["answer"])
-    
-    # Display
+    ).translate(english_answer)
+
     st.session_state["messages"].append({"role": "assistant", "content": final_answer})
     display_messages()
     placeholder.empty()
 
-if firstQ:
-    handle_initial_prompt("policy_scope")
+if btn_scope:
+    handle_prompt_click("policy_scope")
+if btn_report:
+    handle_prompt_click("report_violation")
+if btn_training:
+    handle_prompt_click("training_details")
+if btn_update:
+    handle_prompt_click("last_update")
 
-if secondQ:
-    handle_initial_prompt("report_violation")
 
-if thirdQ:
-    handle_initial_prompt("training_details")
-
-if fourthQ:
-    handle_initial_prompt("last_update")
-
-########################
-#  Chat Input Box      #
-########################
+#######################
+#   Chat Input
+#######################
 def user_query():
     """
-    1) Attempt to detect user input language or let them type in any language
-    2) Translate user query to English for the chain
-    3) Query the chain
-    4) Translate the chain's English answer to selected output language
-    5) Display in st.session_state["messages"]
+    1) Takes user input from st.chat_input
+    2) Attempt to auto-detect the typed language
+    3) Translate to English, pass to chain
+    4) Translate final answer back to selected language
+    5) Display everything in st.session_state["messages"]
     """
-    prompt = st.chat_input("Ask your question in ANY language. Answers will appear in selected language.")
+    prompt = st.chat_input("Ask any question about the Human Rights Policy here...")
     if prompt:
-        # Try to detect user's input language (works best for well-formed text)
+        # Detect user input language (optional)
         try:
-            # single_detection returns the language code, e.g. 'hi', 'ja'
             input_lang = single_detection(prompt, api_key=None)
         except:
-            # If detection fails, fallback to 'auto'
-            input_lang = 'auto'
-        
-        # Translate the user question to English for the chain
+            input_lang = "auto"
+
+        # Translate user question to English
         english_question = GoogleTranslator(
-            source=input_lang, 
+            source=input_lang,
             target='en'
         ).translate(prompt)
-        
-        # Show the user question as typed (no translation in messages)
+
+        # Store user question
         st.session_state["messages"].append({"role": "user", "content": prompt})
-        
-        # Query chain with the English version
-        raw_answer = generate_response(english_question)
-        english_answer = raw_answer["answer"]
-        
-        # Translate chain's English answer to selected language
+
+        # Query chain
+        chain_result = generate_response(english_question)
+        english_answer = chain_result["answer"]
+
+        # Translate chain's answer to selected output language
         final_answer = GoogleTranslator(
-            source='en', 
+            source='en',
             target=languages[selected_language]
         ).translate(english_answer)
-        
-        # Store final answer in the chat
+
+        # Store the final answer
         st.session_state["messages"].append({"role": "assistant", "content": final_answer})
-        
-        # Keep only the last 100 messages
+
+        # Limit messages
         st.session_state["messages"] = st.session_state["messages"][-100:]
         display_messages()
         placeholder.empty()
