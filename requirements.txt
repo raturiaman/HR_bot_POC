@@ -9,3 +9,4 @@ langchain-core
 langchain-experimental
 langchain-openai
 langchain-pinecone
+googletrans==4.0.0-rc1
