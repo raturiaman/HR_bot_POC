@@ -1,8 +1,8 @@
-import os
+import streamlit as st
 from pinecone import Pinecone, ServerlessSpec
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import OpenAIEmbeddings  # Use OpenAI embeddings
+from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_community.vectorstores import Pinecone as LangChainPinecone
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import PromptTemplate
@@ -12,14 +12,13 @@ from langchain.llms import OpenAI
 ############################################
 #          PINECONE SETTINGS              #
 ############################################
-api_key_openai = os.getenv("OPENAI_API_KEY")
-api_key_pinecone = os.getenv("PINECONE_API_KEY")
-pinecone_env = os.getenv("PINECONE_ENVIRONMENT", "us-east-1")
-directory = os.getenv("PDF_DIRECTORY", "./pdfs")
-index_name = os.getenv("PINECONE_INDEX_NAME", "hr-policies-index")
+api_key_openai = st.secrets["OPENAI_API_KEY"]
+api_key_pinecone = st.secrets["PINECONE_API_KEY"]
+directory = st.secrets["directory"]
+index_name = st.secrets["index_name"]
 
 if not api_key_openai or not api_key_pinecone:
-    raise ValueError("Missing OpenAI or Pinecone API key. Check environment variables.")
+    raise ValueError("Missing OpenAI or Pinecone API key. Check secrets.toml.")
 
 ############################################
 #          INITIALIZE PINECONE            #
@@ -36,7 +35,7 @@ if index_name not in existing_indexes:
         metric="cosine",
         spec=ServerlessSpec(
             cloud="aws",
-            region=pinecone_env
+            region="us-east-1"
         )
     )
 
