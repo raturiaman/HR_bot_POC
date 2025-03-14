@@ -28,7 +28,6 @@ os.environ["PINECONE_API_KEY"] = api_key_pinecone
 
 # ----------- Document Processing Functions -----------
 def read_docs(directory):
-    """Load all PDFs in the given directory."""
     loader = PyPDFDirectoryLoader(directory)
     return loader.load()
 
@@ -37,15 +36,10 @@ def chunk_docs(documents, chunk_size=800, chunk_overlap=50):
     return splitter.split_documents(documents)
 
 def get_embeddings():
-    """Return OpenAI embeddings for text encoding."""
     return OpenAIEmbeddings()
 
 # ----------- Memory Initialization -----------
 def get_memory():
-    """
-    Use conversation buffer with window memory (5 last messages).
-    This memory is stored in st.session_state to persist across user interactions.
-    """
     if "memory" not in st.session_state:
         st.session_state["memory"] = ConversationBufferWindowMemory(
             memory_key="chat_history",
@@ -55,10 +49,12 @@ def get_memory():
     return st.session_state["memory"]
 
 # ----------- Prompt Templates -----------
+
 # 1) Condense Follow-Up Questions
 condense_template = """
-Given the conversation below and a follow-up question, rephrase the follow-up question
-to be standalone if it references previous context. If it is unrelated, just use it as-is.
+Given the following conversation and a follow-up question, rephrase the follow-up question
+to be a standalone question without changing its content. If the question is not related
+to previous context, answer directly.
 
 Chat History:
 {chat_history}
@@ -67,14 +63,15 @@ Standalone question:
 """
 condense_question_prompt = PromptTemplate.from_template(condense_template)
 
-# 2) QA Prompt with dynamic fallback referencing the user's question
+# 2) Strict QA Prompt with no outside knowledge
 qa_template = """
-You are a helpful QA assistant focused on the 'Human Rights Policy' below. If the policy context
-does not cover the user's question, respond EXACTLY with this text (replace {question} with
-the user’s question, but do not modify anything else):
+You are a helpful QA assistant specialized in the 'Human Rights Policy'.
+Use ONLY the context below to answer the question. The context is from the 'Human Rights Policy'.
 
-"I didn't find anything in the Human Rights Policy about '{question}'.
-Please consult the Employee Handbook or contact HR/Finance for more details."
+If the question cannot be answered using the context or is out of scope (e.g., about politics, budgets, etc.),
+respond EXACTLY with:
+
+"No relevant information found in the Human Rights Policy for your query. Please consult your HR department for more details."
 
 Context:
 {context}
@@ -86,14 +83,7 @@ qa_prompt = PromptTemplate(template=qa_template, input_variables=["context", "qu
 
 # ----------- Retrieval Chain Creation -----------
 def create_chain(vectorstore, memory):
-    """
-    Build a ConversationalRetrievalChain:
-    - llm: OpenAI
-    - retriever: from Pinecone vectorstore
-    - memory: conversation buffer
-    - prompts: condense follow-up and final QA
-    """
-    chain = ConversationalRetrievalChain.from_llm(
+    return ConversationalRetrievalChain.from_llm(
         llm=OpenAI(),
         retriever=vectorstore.as_retriever(search_kwargs={"k": 3}),
         memory=memory,
@@ -101,39 +91,30 @@ def create_chain(vectorstore, memory):
         combine_docs_chain_kwargs=dict(prompt=qa_prompt),
         verbose=True
     )
-    return chain
 
 # ----------- Main Function -----------
 def ask_model():
-    """
-    1) Load & chunk the PDF(s).
-    2) Create embeddings & build a Pinecone vectorstore.
-    3) Create memory & retrieval chain.
-    4) Return chain for question-answer usage.
-    """
-    # Load and chunk docs
+    # 1) Load & chunk the PDF(s)
     docs = read_docs(directory)
     chunks = chunk_docs(docs)
-
-    # Create embeddings & Pinecone vectorstore
     embeddings = get_embeddings()
+
+    # 2) Initialize Pinecone client
     pc = Pinecone(api_key=api_key_pinecone)
+
+    # 3) Build or connect vectorstore
     vectorstore = LangChainPinecone.from_documents(
         documents=chunks,
         embedding=embeddings,
         index_name=index_name
     )
 
-    # Create memory & chain
+    # 4) Create memory & retrieval chain
     memory = get_memory()
     chain = create_chain(vectorstore, memory)
     return chain
 
 # ----------- Perform Retrieval -----------
 def perform_query(chain, query):
-    """
-    Provide the user query to the chain and get the structured result.
-    Access the final answer as result["answer"].
-    """
     result = chain({"question": query})
     return result
