@@ -1,9 +1,9 @@
 import streamlit as st
 import os
 from langchain_community.document_loaders import PyPDFDirectoryLoader  # Updated import
+from langchain_community.embeddings import OpenAIEmbeddings  # Updated import
+from langchain_community.vectorstores import Pinecone as LangChainPinecone  # Updated import
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import Pinecone as LangChainPinecone
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
