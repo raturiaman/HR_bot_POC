@@ -1,7 +1,7 @@
 streamlit
 pypdf
 PyPDF2
-pinecone
+pinecone==2.2.1
 openai
 langchain
 langchain-community
