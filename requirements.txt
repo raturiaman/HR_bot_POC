@@ -9,3 +9,4 @@ langchain-core
 langchain-experimental
 googletrans==4.0.0-rc1
 translators
+sentence-transformers
