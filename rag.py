@@ -2,7 +2,7 @@ import os
 from pinecone import Pinecone, ServerlessSpec
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_community.embeddings import OpenAIEmbeddings  # Use OpenAI embeddings
 from langchain_community.vectorstores import Pinecone as LangChainPinecone
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import PromptTemplate
@@ -66,7 +66,7 @@ def chunk_docs(documents, chunk_size=800, chunk_overlap=50):
 
 def get_embeddings():
     """Return OpenAI embeddings for text encoding."""
-    return OpenAIEmbeddings(model="text-embedding-ada-002")  # Use OpenAI embeddings
+    return OpenAIEmbeddings(model="text-embedding-3-small")  # Use OpenAI's text-embedding-3-small
 
 ############################################
 #         MEMORY INITIALIZATION           #
