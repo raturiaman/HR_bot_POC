@@ -1,11 +1,11 @@
 import streamlit as st
 import os
 
-########################
-# LangChain & Community
-########################
+# Document loaders and text splitting
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+# Embeddings and vector store (community packages)
 from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_community.vectorstores import Pinecone as LangChainPinecone
 
@@ -14,9 +14,7 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain.llms import OpenAI
 
-########################
-# Official Pinecone
-########################
+# Official pinecone package
 from pinecone import Pinecone, ServerlessSpec
 
 ########################
@@ -26,9 +24,10 @@ api_key_openai = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
 api_key_pinecone = st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY"))
 pinecone_env = st.secrets.get("PINECONE_ENVIRONMENT", os.getenv("PINECONE_ENV", ""))
 directory = st.secrets.get("directory", "./pdfs")
-index_name = st.secrets.get("index_name", "hr-policies-index-1536")
 
-# Ensure API keys are set
+# IMPORTANT: set your new 1536-dimension index name here
+index_name = "hr-policies-index-1536"
+
 if not api_key_openai or not api_key_pinecone:
     raise ValueError("Missing OpenAI or Pinecone API key. Check secrets.toml or environment variables.")
 
@@ -40,28 +39,27 @@ if pinecone_env:
 ########################
 # Document & Embedding
 ########################
-
 def read_docs(pdf_directory):
     """
-    Loads all PDFs in the given directory using PyPDFDirectoryLoader.
+    Loads all PDFs from the specified directory using PyPDFDirectoryLoader.
     """
     loader = PyPDFDirectoryLoader(pdf_directory)
     return loader.load()
 
 def chunk_docs(documents, chunk_size=800, chunk_overlap=50):
-    """
-    Splits the loaded docs into smaller chunks for embedding.
-    """
-    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap
+    )
     return splitter.split_documents(documents)
 
 def get_embeddings():
-    return OpenAIEmbeddings()  # text-embedding-ada-002 by default
+    # text-embedding-ada-002 => dimension 1536
+    return OpenAIEmbeddings()
 
 ########################
 # Memory
 ########################
-
 def get_memory():
     """
     Creates or retrieves a conversation buffer memory from st.session_state.
@@ -78,7 +76,6 @@ def get_memory():
 ########################
 # Prompt Templates
 ########################
-
 condense_template = """
 Given the conversation below and a follow-up question, rephrase the follow-up question
 to be a standalone question if it references prior context. If it's unrelated, answer directly.
@@ -86,10 +83,9 @@ to be a standalone question if it references prior context. If it's unrelated, a
 Chat History:
 {chat_history}
 Follow-Up Input: {question}
-Standalone question:
-"""
-condense_question_prompt = PromptTemplate.from_template(condense_template)
+Standalone question:"""
 
+condense_question_prompt = PromptTemplate.from_template(condense_template)
 
 qa_template = """
 You are a helpful QA assistant specialized in the 'Human Rights Policy'. 
@@ -104,8 +100,8 @@ Context:
 {context}
 
 Question: {question}
-Helpful Answer:
-"""
+Helpful Answer:"""
+
 qa_prompt = PromptTemplate(template=qa_template, input_variables=["context", "question"])
 
 ########################
@@ -133,7 +129,6 @@ def create_chain(vectorstore, memory):
 ########################
 # Manual Upsert to Pinecone
 ########################
-
 def upsert_chunks_to_pinecone(chunks, embeddings, pc, index_name):
     """
     1) Create the Pinecone index if it doesn't exist
@@ -144,13 +139,13 @@ def upsert_chunks_to_pinecone(chunks, embeddings, pc, index_name):
     existing = pc.list_indexes().names()
     if index_name not in existing:
         print(f"Creating Pinecone index '{index_name}' ...")
-        # match embedding dimension (1536 for ada-002)
-        dimension = 1536  
+        # dimension=1536 for text-embedding-ada-002
+        dimension = 1536
         pc.create_index(
             name=index_name,
             dimension=dimension,
             metric="cosine",
-            spec=ServerlessSpec(cloud="aws", region="us-west4")  # or your region
+            spec=ServerlessSpec(cloud="aws", region="us-east-1")  # or your region
         )
         # Wait for index creation
         import time
@@ -162,29 +157,22 @@ def upsert_chunks_to_pinecone(chunks, embeddings, pc, index_name):
     pinecone_index = pc.Index(index_name)
 
     # Prepare data to upsert
-    # chunk.page_content is your text, chunk.metadata is optional
     import uuid
     vectors_to_upsert = []
     for chunk in chunks:
-        # embed the text
         text_embedding = embeddings.embed_query(chunk.page_content)
-        # generate a unique ID for each chunk
         chunk_id = str(uuid.uuid4())
-        # store metadata if you want
         meta = chunk.metadata if chunk.metadata else {}
-        # add to batch
         vectors_to_upsert.append(
             (chunk_id, text_embedding, meta)
         )
 
-    # Upsert in Pinecone
     print(f"Upserting {len(vectors_to_upsert)} chunks into Pinecone index '{index_name}'...")
     pinecone_index.upsert(vectors_to_upsert)
 
 ########################
 # Main Function
 ########################
-
 def ask_model():
     """
     1) Load & chunk PDF(s)
@@ -192,30 +180,23 @@ def ask_model():
     3) Connect to the existing Pinecone index with from_existing_index
     4) Create chain from the vectorstore & memory
     """
-    # 1) Load docs & chunk them
     docs = read_docs(directory)
     chunks = chunk_docs(docs)
     embeddings = get_embeddings()
 
-    # 2) Initialize new Pinecone client
     pc = Pinecone(api_key=api_key_pinecone)
-    # Upsert chunked data to Pinecone index
     upsert_chunks_to_pinecone(chunks, embeddings, pc, index_name)
 
-    # 3) Connect to the existing index from LangChain
+    # Connect to existing index in LangChain
     vectorstore = LangChainPinecone.from_existing_index(
         index_name=index_name,
         embedding=embeddings
     )
 
-    # 4) Create chain with memory
     memory = get_memory()
     chain = create_chain(vectorstore, memory)
     return chain
 
 def perform_query(chain, query):
-    """
-    Provide the user query to the chain and return the structured result.
-    """
     result = chain({"question": query})
     return result
