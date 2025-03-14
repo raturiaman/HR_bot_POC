@@ -15,12 +15,14 @@ from pinecone import Pinecone  # Correct Pinecone import
 import rag  # Importing the RAG module
 
 # ----------------- Setting -------------------------
-api_key_openai = st.secrets["OPENAI_API_KEY"]
-api_key_pinecone = st.secrets["PINECONE_API_KEY"]
-directory = st.secrets["directory"]
-index_name = st.secrets["index_name"]
+api_key_openai = st.secrets.get("OPENAI_API_KEY", "")
+api_key_pinecone = st.secrets.get("PINECONE_API_KEY", "")
+directory = st.secrets.get("directory", "./pdfs")
+index_name = "hr-policies-index"  # Updated with your Pinecone index name
 
-# ----------------- Setting -------------------------
+# Ensure API keys are set
+if not api_key_openai or not api_key_pinecone:
+    raise ValueError("Missing OpenAI or Pinecone API key. Check secrets.toml or environment variables.")
 
 messages = st.empty()
 
