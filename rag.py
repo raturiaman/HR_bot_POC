@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-import pinecone 
+from pinecone import Pinecone, ServerlessSpec  # Corrected import
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import OpenAIEmbeddings
@@ -25,10 +25,23 @@ if not api_key_openai or not api_key_pinecone:
 ############################################
 #          INITIALIZE PINECONE            #
 ############################################
-pinecone.init(api_key=api_key_pinecone, environment=pinecone_env)
+# Create a Pinecone instance
+pc = Pinecone(api_key=api_key_pinecone)
+
+# Ensure index exists
+if index_name not in pc.list_indexes().names():
+    pc.create_index(
+        name=index_name,
+        dimension=1024,  # Updated to match Llama embeddings
+        metric="cosine",
+        spec=ServerlessSpec(
+            cloud="aws",
+            region=pinecone_env  # Ensure the correct region is used
+        )
+    )
 
 # Correctly fetch the Pinecone index
-index = pinecone.Index(index_name)  # ✅ Correct way to get the index instance
+index = pc.Index(index_name)  # ✅ Correct way to get the index instance
 
 ############################################
 #        DOCUMENT PROCESSING FUNCTIONS    #
@@ -81,7 +94,6 @@ Context:
 Question: {question}
 Helpful Answer:
 """
-
 qa_prompt = PromptTemplate(template=qa_template, input_variables=["context", "question"])
 
 ############################################
