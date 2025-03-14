@@ -8,7 +8,7 @@ from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain.llms import OpenAI
-from pinecone import Pinecone as PineconeClient
+from pinecone import Pinecone
 
 # ---------- Settings (API Keys from Streamlit Secrets) ---------
 api_key_openai = st.secrets["OPENAI_API_KEY"]
@@ -78,7 +78,7 @@ def ask_model():
     embeddings = OpenAIEmbeddings()
 
     # Initialize Pinecone client
-    pc = PineconeClient(api_key=api_key_pinecone)
+    pc = Pinecone(api_key=api_key_pinecone)
 
     # LangChain Pinecone wrapper (Correct Usage)
     vectorstore = LangChainPinecone.from_documents(

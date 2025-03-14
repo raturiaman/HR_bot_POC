@@ -11,6 +11,7 @@ Update on 23 Feb 2024 by Jugal:
 """
 
 import streamlit as st
+from pinecone import Pinecone  # Correct Pinecone import
 import rag  # Importing the RAG module
 
 # ----------------- Setting -------------------------
@@ -18,6 +19,7 @@ api_key_openai = st.secrets["OPENAI_API_KEY"]
 api_key_pinecone = st.secrets["PINECONE_API_KEY"]
 directory = st.secrets["directory"]
 index_name = st.secrets["index_name"]
+
 # ----------------- Setting -------------------------
 
 messages = st.empty()
