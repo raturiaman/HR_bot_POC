@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from langchain.document_loaders import PyPDFDirectoryLoader
+from langchain_community.document_loaders import PyPDFDirectoryLoader  # Updated import
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import Pinecone as LangChainPinecone
@@ -11,10 +11,14 @@ from langchain.llms import OpenAI
 from pinecone import Pinecone
 
 # ---------- Settings (API Keys from Streamlit Secrets) ---------
-api_key_openai = st.secrets["OPENAI_API_KEY"]
-api_key_pinecone = st.secrets["PINECONE_API_KEY"]
-directory = st.secrets["directory"]
-index_name = "hr-policies-index"
+api_key_openai = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
+api_key_pinecone = st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY"))
+directory = st.secrets.get("directory", os.getenv("PDF_DIRECTORY", "./pdfs"))
+index_name = st.secrets.get("index_name", "hr-policies-index")
+
+# Ensure API keys are set
+if not api_key_openai or not api_key_pinecone:
+    raise ValueError("Missing OpenAI or Pinecone API key. Check secrets.toml or environment variables.")
 
 # ----------- Environment Setup -----------
 os.environ["OPENAI_API_KEY"] = api_key_openai
