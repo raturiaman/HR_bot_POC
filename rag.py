@@ -26,7 +26,7 @@ api_key_openai = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
 api_key_pinecone = st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY"))
 pinecone_env = st.secrets.get("PINECONE_ENVIRONMENT", os.getenv("PINECONE_ENV", ""))
 directory = st.secrets.get("directory", "./pdfs")
-index_name = st.secrets.get("index_name", "hr-policies-index")
+index_name = st.secrets.get("index_name", "hr-policies-index-1536")
 
 # Ensure API keys are set
 if not api_key_openai or not api_key_pinecone:

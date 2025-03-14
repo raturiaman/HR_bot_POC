@@ -16,7 +16,7 @@ from deep_translator import GoogleTranslator, single_detection
 api_key_openai = st.secrets.get("OPENAI_API_KEY", "")
 api_key_pinecone = st.secrets.get("PINECONE_API_KEY", "")
 directory = st.secrets.get("directory", "./pdfs")
-index_name = st.secrets.get("index_name", "hr-policies-index")
+index_name = st.secrets.get("index_name", "hr-policies-index-1536")
 
 if not api_key_openai or not api_key_pinecone:
     raise ValueError("Missing OpenAI or Pinecone API key. Check secrets.toml or environment variables.")
