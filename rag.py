@@ -10,7 +10,7 @@ from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain.llms import OpenAI
-from pinecone import Pinecone
+from pinecone import Pinecone, Index
 
 ############################################
 #          PINECONE SETTINGS              #
@@ -53,7 +53,8 @@ def read_docs(directory):
 def chunk_docs(documents, chunk_size=800, chunk_overlap=50):
     """Split documents into smaller chunks for embedding."""
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size, chunk_overlap=chunk_overlap
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap
     )
     return splitter.split_documents(documents)
 
@@ -145,14 +146,17 @@ def ask_model():
     # 3) Pinecone client with environment
     pc = Pinecone(api_key=api_key_pinecone, environment=pinecone_env)
 
-    # 4) Build or connect vectorstore
-    vectorstore = LangChainPinecone.from_documents(
-        documents=chunks,
+    # 4) Retrieve the correct Pinecone index
+    index = pc.Index(index_name)  # Correctly fetches the index instance
+
+    # 5) Build the LangChain Pinecone vectorstore
+    vectorstore = LangChainPinecone(
+        index=index,
         embedding=embeddings,
-        index_name=index_name
+        text_key="text"
     )
 
-    # 5) Create chain with memory
+    # 6) Create chain with memory
     memory = get_memory()
     chain = create_chain(vectorstore, memory)
     return chain
