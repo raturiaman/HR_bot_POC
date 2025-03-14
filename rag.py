@@ -2,7 +2,7 @@ import os
 from pinecone import Pinecone, ServerlessSpec
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import OpenAIEmbeddings  # Use OpenAI embeddings
+from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_community.vectorstores import Pinecone as LangChainPinecone
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import PromptTemplate
@@ -29,6 +29,7 @@ pc = Pinecone(api_key=api_key_pinecone)
 # Ensure index exists
 existing_indexes = [index_info.name for index_info in pc.list_indexes()]
 if index_name not in existing_indexes:
+    # Create the index if it doesn't exist
     pc.create_index(
         name=index_name,
         dimension=1536,  # Match the dimension of OpenAI embeddings
