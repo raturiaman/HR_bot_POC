@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import time
 
 # Updated imports for LangChain components
 from langchain_community.document_loaders import PyPDFDirectoryLoader
@@ -19,8 +20,10 @@ api_key_openai = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
 api_key_pinecone = st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY"))
 directory = st.secrets.get("directory", os.getenv("PDF_DIRECTORY", "./pdfs"))
 index_name = st.secrets.get("index_name", "hr-policies-index")
-pinecone_host = st.secrets.get("pinecone_host", "https://hr-policies-index-gh700zo.svc.aped-4627-b74a.pinecone.io")
-pinecone_region = "us-east-1"  # Update if needed
+# IMPORTANT: Use the controller endpoint for management calls, not the index endpoint.
+pinecone_controller_host = st.secrets.get("pinecone_controller_host", "https://controller.us-east-1.pinecone.io")
+# (You already have an index with host "https://hr-policies-index-gh700zo.svc.aped-4627-b74a.pinecone.io" for query)
+pinecone_region = "us-east-1"  # Adjust if needed
 
 if not api_key_openai or not api_key_pinecone:
     raise ValueError("Missing OpenAI or Pinecone API key. Check your secrets or environment variables.")
@@ -29,10 +32,10 @@ if not api_key_openai or not api_key_pinecone:
 os.environ["OPENAI_API_KEY"] = api_key_openai
 os.environ["PINECONE_API_KEY"] = api_key_pinecone
 
-# Initialize the Pinecone client using the new official package
+# Initialize the Pinecone client using the new official package with the controller endpoint
 pc = Pinecone(
     api_key=api_key_pinecone,
-    host=pinecone_host,
+    host=pinecone_controller_host,
     spec=ServerlessSpec(cloud='aws', region=pinecone_region)
 )
 
