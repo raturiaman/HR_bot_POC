@@ -5,7 +5,7 @@ import os
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import Chroma
+from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
@@ -14,9 +14,7 @@ from langchain.llms import OpenAI
 # ---------- Settings (API Keys and Configurations from Streamlit Secrets) ---------
 api_key_openai = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
 directory = st.secrets.get("directory", os.getenv("PDF_DIRECTORY", "./pdfs"))
-collection_name = st.secrets.get("collection_name", "hr-policies-collection")
 
-# Ensure API keys are set
 if not api_key_openai:
     raise ValueError("Missing OpenAI API key. Check secrets.toml or environment variables.")
 
@@ -55,7 +53,6 @@ def get_memory():
     return st.session_state["memory"]
 
 # ----------- Prompt Templates -----------
-# 1) Condense Follow-Up Questions
 condense_template = """
 Given the conversation below and a follow-up question, rephrase the follow-up question
 to be standalone if it references previous context. If it is unrelated, just use it as-is.
@@ -67,7 +64,6 @@ Standalone question:
 """
 condense_question_prompt = PromptTemplate.from_template(condense_template)
 
-# 2) QA Prompt with dynamic fallback referencing the user's question
 qa_template = """
 You are a helpful QA assistant focused on the 'Human Rights Policy' below. If the policy context
 does not cover the user's question, respond EXACTLY with this text (replace {question} with
@@ -88,10 +84,10 @@ qa_prompt = PromptTemplate(template=qa_template, input_variables=["context", "qu
 def create_chain(vectorstore, memory):
     """
     Build a ConversationalRetrievalChain:
-    - llm: OpenAI
-    - retriever: from Chroma vectorstore
-    - memory: conversation buffer
-    - prompts: condense follow-up and final QA
+      - llm: OpenAI
+      - retriever: from FAISS vectorstore
+      - memory: conversation buffer
+      - prompts: condense follow-up and final QA
     """
     chain = ConversationalRetrievalChain.from_llm(
         llm=OpenAI(),
@@ -107,7 +103,7 @@ def create_chain(vectorstore, memory):
 def ask_model():
     """
     1) Load & chunk the PDF(s).
-    2) Create embeddings & build a Chroma vectorstore.
+    2) Create embeddings & build a FAISS vectorstore.
     3) Create memory & retrieval chain.
     4) Return chain for question-answer usage.
     """
@@ -118,12 +114,8 @@ def ask_model():
     # Create embeddings
     embeddings = get_embeddings()
 
-    # Build a Chroma vectorstore from documents
-    vectorstore = Chroma.from_documents(
-        documents=chunks,
-        embedding=embeddings,
-        collection_name=collection_name
-    )
+    # Build a FAISS vectorstore from the document chunks
+    vectorstore = FAISS.from_documents(documents=chunks, embedding=embeddings)
 
     # Create memory & chain
     memory = get_memory()

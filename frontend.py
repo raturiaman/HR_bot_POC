@@ -11,13 +11,12 @@ Update on 23 Feb 2024 by Jugal:
 """
 
 import streamlit as st
-import rag  # Importing the RAG module
+import rag  # Import the updated RAG module
 
 # ----------------- Settings -------------------------
 api_key_openai = st.secrets.get("OPENAI_API_KEY", "")
 directory = st.secrets.get("directory", "./pdfs")
 
-# Ensure API keys are set
 if not api_key_openai:
     raise ValueError("Missing OpenAI API key. Check secrets.toml or environment variables.")
 
