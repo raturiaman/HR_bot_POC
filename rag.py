@@ -35,6 +35,13 @@ pc = Pinecone(
     host=pinecone_host,
     spec=ServerlessSpec(cloud='aws', region=pinecone_region)
 )
+
+# Verify that the index exists
+existing_indexes = pc.list_indexes().names()
+print("Existing indexes:", existing_indexes)
+if index_name not in existing_indexes:
+    raise Exception(f"Index '{index_name}' not found. Please create it in your Pinecone dashboard.")
+
 # Retrieve your existing index
 index = pc.Index(index_name)
 
@@ -77,8 +84,8 @@ def get_embeddings():
 # ----------- Memory Initialization -----------
 def get_memory():
     """
-    Use conversation buffer with window memory (last 5 messages).
-    This memory is stored in st.session_state to persist across interactions.
+    Use a conversation buffer with window memory (last 5 messages).
+    Stored in st.session_state to persist across interactions.
     """
     if "memory" not in st.session_state:
         st.session_state["memory"] = ConversationBufferWindowMemory(
@@ -143,7 +150,7 @@ def ask_model():
     3) Create memory & retrieval chain.
     4) Return chain for question-answer usage.
     """
-    # Load and chunk documents
+    # Load and chunk docs
     docs = read_docs(directory)
     chunks = chunk_docs(docs)
 
