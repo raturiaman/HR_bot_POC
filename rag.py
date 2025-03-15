@@ -26,6 +26,12 @@ def read_docs(directory):
     """Load all PDFs in the given directory."""
     loader = PyPDFDirectoryLoader(directory)
     docs = loader.load()
+    print(f"Loaded {len(docs)} document(s) from directory: {directory}")
+    if docs:
+        # Print a preview of the first document's content (first 500 characters)
+        first_content = docs[0].page_content.strip()
+        print("Preview of first document (first 500 chars):")
+        print(first_content[:500])
     if not docs:
         raise ValueError(f"No documents found in directory: {directory}")
     return docs
@@ -33,10 +39,10 @@ def read_docs(directory):
 def chunk_docs(documents, chunk_size=800, chunk_overlap=50):
     splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     chunks = splitter.split_documents(documents)
-    if not chunks:
-        raise ValueError("No document chunks produced. Check your documents and chunking parameters.")
+    print(f"Created {len(chunks)} chunks from the documents.")
     # Filter out chunks with empty content
     filtered_chunks = [chunk for chunk in chunks if chunk.page_content.strip()]
+    print(f"Filtered to {len(filtered_chunks)} non-empty chunk(s).")
     if not filtered_chunks:
         raise ValueError("No non-empty document chunks produced. Check your PDFs and chunking parameters.")
     return filtered_chunks
