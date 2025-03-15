@@ -32,11 +32,15 @@ def read_docs(directory):
         first_content = docs[0].page_content.strip()
         print("Preview of first document (first 500 chars):")
         print(first_content[:500])
-    if not docs:
+    else:
         raise ValueError(f"No documents found in directory: {directory}")
     return docs
 
-def chunk_docs(documents, chunk_size=800, chunk_overlap=50):
+def chunk_docs(documents, chunk_size=400, chunk_overlap=20):
+    """
+    Split documents into chunks.
+    We use a smaller chunk size in case the document's text is short.
+    """
     splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     chunks = splitter.split_documents(documents)
     print(f"Created {len(chunks)} chunks from the documents.")
