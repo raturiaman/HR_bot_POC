@@ -25,11 +25,17 @@ os.environ["OPENAI_API_KEY"] = api_key_openai
 def read_docs(directory):
     """Load all PDFs in the given directory."""
     loader = PyPDFDirectoryLoader(directory)
-    return loader.load()
+    docs = loader.load()
+    if not docs:
+        raise ValueError(f"No documents found in directory: {directory}")
+    return docs
 
 def chunk_docs(documents, chunk_size=800, chunk_overlap=50):
     splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-    return splitter.split_documents(documents)
+    chunks = splitter.split_documents(documents)
+    if not chunks:
+        raise ValueError("No document chunks produced. Check your documents and chunking parameters.")
+    return chunks
 
 def get_embeddings():
     """
