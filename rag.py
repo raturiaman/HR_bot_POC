@@ -1,32 +1,25 @@
 import streamlit as st
 import os
 
-# UPDATED imports for the new version of LangChain
+# Use the standard LangChain imports (adjust these if you're using langchain_community)
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import OpenAIEmbeddings
-from langchain_community.vectorstores import Pinecone as LangChainPinecone
+from langchain.vectorstores import FAISS  # FAISS is free and runs locally
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain.llms import OpenAI
 
-# ---------- Settings (API Keys and Configurations from Streamlit Secrets) ---------
+# ---------- Settings (API Keys and Configurations) ---------
 api_key_openai = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
-api_key_pinecone = st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY"))
 directory = st.secrets.get("directory", os.getenv("PDF_DIRECTORY", "./pdfs"))
-index_name = st.secrets.get("index_name", "hr-policies-index")
-pinecone_host = st.secrets.get("pinecone_host", "https://hr-policies-index-gh700zo.svc.aped-4627-b74a.pinecone.io")
-# For your configuration, we are using AWS us-east-1
-pinecone_region = "us-east-1"
 
-# Ensure API keys are set
-if not api_key_openai or not api_key_pinecone:
-    raise ValueError("Missing OpenAI or Pinecone API key. Check secrets.toml or environment variables.")
+if not api_key_openai:
+    raise ValueError("Missing OpenAI API key. Check secrets.toml or environment variables.")
 
-# ----------- Environment Setup -----------
+# Set the API key for OpenAI in the environment
 os.environ["OPENAI_API_KEY"] = api_key_openai
-os.environ["PINECONE_API_KEY"] = api_key_pinecone
 
 # ----------- Document Processing Functions -----------
 def read_docs(directory):
@@ -94,7 +87,7 @@ def create_chain(vectorstore, memory):
     """
     Build a ConversationalRetrievalChain:
     - llm: OpenAI
-    - retriever: from Pinecone vectorstore
+    - retriever: from FAISS vectorstore
     - memory: conversation buffer
     - prompts: condense follow-up and final QA
     """
@@ -112,38 +105,19 @@ def create_chain(vectorstore, memory):
 def ask_model():
     """
     1) Load & chunk the PDF(s).
-    2) Create embeddings & build a Pinecone vectorstore.
+    2) Create embeddings & build a FAISS vectorstore.
     3) Create memory & retrieval chain.
     4) Return chain for question-answer usage.
     """
-    # Load and chunk docs
+    # Load and chunk documents
     docs = read_docs(directory)
     chunks = chunk_docs(docs)
 
     # Create embeddings
     embeddings = get_embeddings()
 
-    # Create Pinecone client instance using the new API
-    from pinecone import Pinecone, ServerlessSpec
-    pc = Pinecone(
-        api_key=api_key_pinecone,
-        host=pinecone_host,
-        spec=ServerlessSpec(cloud='aws', region=pinecone_region)
-    )
-
-    # Retrieve the index instance from the Pinecone client
-    index = pc.Index(index_name)
-
-    # Manually build the vectorstore by providing the index instance.
-    # The LangChain wrapper expects a client of type pinecone.Index, so we bypass the
-    # internal creation using from_documents.
-    # Here we set text_key to "text" and leave namespace as None.
-    vectorstore = LangChainPinecone(index=index, embedding=embeddings, text_key="text", namespace=None)
-
-    # Prepare texts and metadata from chunks and add them to the vectorstore.
-    texts = [doc.page_content for doc in chunks]
-    metadatas = [doc.metadata for doc in chunks]
-    vectorstore.add_texts(texts, metadatas)
+    # Build a FAISS vectorstore from the document chunks
+    vectorstore = FAISS.from_documents(chunks, embeddings)
 
     # Create memory & chain
     memory = get_memory()
