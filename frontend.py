@@ -15,13 +15,11 @@ import rag  # Importing the RAG module
 
 # ----------------- Settings -------------------------
 api_key_openai = st.secrets.get("OPENAI_API_KEY", "")
-api_key_pinecone = st.secrets.get("PINECONE_API_KEY", "")
 directory = st.secrets.get("directory", "./pdfs")
-index_name = "hr-policies-index"  # This is the default in rag.py
 
 # Ensure API keys are set
-if not api_key_openai or not api_key_pinecone:
-    raise ValueError("Missing OpenAI or Pinecone API key. Check secrets.toml or environment variables.")
+if not api_key_openai:
+    raise ValueError("Missing OpenAI API key. Check secrets.toml or environment variables.")
 
 # Session state for chat messages
 if "messages" not in st.session_state:

@@ -1,24 +1,26 @@
 import streamlit as st
 import os
 
-# Use the standard LangChain imports (adjust these if you're using langchain_community)
+# Updated imports for LangChain
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import FAISS  # FAISS is free and runs locally
+from langchain.vectorstores import Chroma
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain.llms import OpenAI
 
-# ---------- Settings (API Keys and Configurations) ---------
+# ---------- Settings (API Keys and Configurations from Streamlit Secrets) ---------
 api_key_openai = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
 directory = st.secrets.get("directory", os.getenv("PDF_DIRECTORY", "./pdfs"))
+collection_name = st.secrets.get("collection_name", "hr-policies-collection")
 
+# Ensure API keys are set
 if not api_key_openai:
     raise ValueError("Missing OpenAI API key. Check secrets.toml or environment variables.")
 
-# Set the API key for OpenAI in the environment
+# ----------- Environment Setup -----------
 os.environ["OPENAI_API_KEY"] = api_key_openai
 
 # ----------- Document Processing Functions -----------
@@ -87,7 +89,7 @@ def create_chain(vectorstore, memory):
     """
     Build a ConversationalRetrievalChain:
     - llm: OpenAI
-    - retriever: from FAISS vectorstore
+    - retriever: from Chroma vectorstore
     - memory: conversation buffer
     - prompts: condense follow-up and final QA
     """
@@ -105,19 +107,23 @@ def create_chain(vectorstore, memory):
 def ask_model():
     """
     1) Load & chunk the PDF(s).
-    2) Create embeddings & build a FAISS vectorstore.
+    2) Create embeddings & build a Chroma vectorstore.
     3) Create memory & retrieval chain.
     4) Return chain for question-answer usage.
     """
-    # Load and chunk documents
+    # Load and chunk docs
     docs = read_docs(directory)
     chunks = chunk_docs(docs)
 
     # Create embeddings
     embeddings = get_embeddings()
 
-    # Build a FAISS vectorstore from the document chunks
-    vectorstore = FAISS.from_documents(chunks, embeddings)
+    # Build a Chroma vectorstore from documents
+    vectorstore = Chroma.from_documents(
+        documents=chunks,
+        embedding=embeddings,
+        collection_name=collection_name
+    )
 
     # Create memory & chain
     memory = get_memory()
