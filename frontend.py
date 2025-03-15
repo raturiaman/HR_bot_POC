@@ -14,7 +14,7 @@ import streamlit as st
 from pinecone import Pinecone  # Pinecone client import
 import rag  # Importing the RAG module
 
-# ----------------- Setting -------------------------
+# ----------------- Settings -------------------------
 api_key_openai = st.secrets.get("OPENAI_API_KEY", "")
 api_key_pinecone = st.secrets.get("PINECONE_API_KEY", "")
 directory = st.secrets.get("directory", "./pdfs")
@@ -24,21 +24,21 @@ index_name = "hr-policies-index"  # This is the default in rag.py
 if not api_key_openai or not api_key_pinecone:
     raise ValueError("Missing OpenAI or Pinecone API key. Check secrets.toml or environment variables.")
 
-messages = st.empty()
-
 # Session state for chat messages
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
 
+# Cache the chain so that documents and the vectorstore are loaded only once
+if "chain" not in st.session_state:
+    st.session_state["chain"] = rag.ask_model()
+
 def generate_response(input_data_query):
     """
     This function calls the RAG (Retrieval-Augmented Generation) module functions
-    to build the chain and get the result from the chain for the user query.
+    to get the result from the chain for the user query.
     """
-    # Ask for or reuse a chain in session
-    chain = rag.ask_model()
-    question = input_data_query
-    output = rag.perform_query(chain, question)
+    chain = st.session_state["chain"]
+    output = rag.perform_query(chain, input_data_query)
     return output  # Return the structured response from the chain
 
 st.title("Human Rights Policy Chatbot")
@@ -75,28 +75,28 @@ with placeholder.form(key='my_form'):
 if firstQ:
     st.session_state["messages"].append({"role": "user", "content": initial_prompts["policy_scope"]})
     ans = generate_response(initial_prompts["policy_scope"])
-    st.session_state["messages"].append({"role": "assistant", "content": ans['answer']})
+    st.session_state["messages"].append({"role": "assistant", "content": ans.get('answer', 'No answer provided.')})
     display_messages()
     placeholder.empty()
 
 if secondQ:
     st.session_state["messages"].append({"role": "user", "content": initial_prompts["report_violation"]})
     ans = generate_response(initial_prompts["report_violation"])
-    st.session_state["messages"].append({"role": "assistant", "content": ans['answer']})
+    st.session_state["messages"].append({"role": "assistant", "content": ans.get('answer', 'No answer provided.')})
     display_messages()
     placeholder.empty()
 
 if thirdQ:
     st.session_state["messages"].append({"role": "user", "content": initial_prompts["training_details"]})
     ans = generate_response(initial_prompts["training_details"])
-    st.session_state["messages"].append({"role": "assistant", "content": ans['answer']})
+    st.session_state["messages"].append({"role": "assistant", "content": ans.get('answer', 'No answer provided.')})
     display_messages()
     placeholder.empty()
 
 if fourthQ:
     st.session_state["messages"].append({"role": "user", "content": initial_prompts["last_update"]})
     ans = generate_response(initial_prompts["last_update"])
-    st.session_state["messages"].append({"role": "assistant", "content": ans['answer']})
+    st.session_state["messages"].append({"role": "assistant", "content": ans.get('answer', 'No answer provided.')})
     display_messages()
     placeholder.empty()
 
@@ -106,7 +106,7 @@ def user_query():
     if prompt:
         st.session_state["messages"].append({"role": "user", "content": prompt})
         answer = generate_response(prompt)
-        st.session_state["messages"].append({"role": "assistant", "content": answer['answer']})
+        st.session_state["messages"].append({"role": "assistant", "content": answer.get('answer', 'No answer provided.')})
         # Limit messages to the last 100 to manage memory usage
         st.session_state["messages"] = st.session_state["messages"][-100:]
         display_messages()

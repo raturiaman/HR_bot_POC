@@ -12,11 +12,12 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain.llms import OpenAI
 from pinecone import Pinecone
 
-# ---------- Settings (API Keys from Streamlit Secrets) ---------
+# ---------- Settings (API Keys and Configurations from Streamlit Secrets) ---------
 api_key_openai = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
 api_key_pinecone = st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY"))
 directory = st.secrets.get("directory", os.getenv("PDF_DIRECTORY", "./pdfs"))
 index_name = st.secrets.get("index_name", "hr-policies-index")
+pinecone_host = st.secrets.get("pinecone_host", "https://hr-policies-index-gh700zo.svc.aped-4627-b74a.pinecone.io")
 
 # Ensure API keys are set
 if not api_key_openai or not api_key_pinecone:
@@ -37,13 +38,16 @@ def chunk_docs(documents, chunk_size=800, chunk_overlap=50):
     return splitter.split_documents(documents)
 
 def get_embeddings():
-    """Return OpenAI embeddings for text encoding."""
-    return OpenAIEmbeddings()
+    """
+    Return OpenAI embeddings for text encoding.
+    Using the "text-similarity-ada-001" model which outputs 1024-dimensional embeddings.
+    """
+    return OpenAIEmbeddings(model="text-similarity-ada-001")
 
 # ----------- Memory Initialization -----------
 def get_memory():
     """
-    Use conversation buffer with window memory (5 last messages).
+    Use conversation buffer with window memory (last 5 messages).
     This memory is stored in st.session_state to persist across user interactions.
     """
     if "memory" not in st.session_state:
@@ -117,7 +121,8 @@ def ask_model():
 
     # Create embeddings & Pinecone vectorstore
     embeddings = get_embeddings()
-    pc = Pinecone(api_key=api_key_pinecone)
+    # Initialize Pinecone client with the provided host
+    pc = Pinecone(api_key=api_key_pinecone, host=pinecone_host)
     vectorstore = LangChainPinecone.from_documents(
         documents=chunks,
         embedding=embeddings,
