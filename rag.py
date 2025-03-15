@@ -1,6 +1,5 @@
 import streamlit as st
 import os
-import pinecone  # Use the native Pinecone SDK
 
 # UPDATED imports for the new version of LangChain
 from langchain_community.document_loaders import PyPDFDirectoryLoader
@@ -18,7 +17,8 @@ api_key_pinecone = st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KE
 directory = st.secrets.get("directory", os.getenv("PDF_DIRECTORY", "./pdfs"))
 index_name = st.secrets.get("index_name", "hr-policies-index")
 pinecone_host = st.secrets.get("pinecone_host", "https://hr-policies-index-gh700zo.svc.aped-4627-b74a.pinecone.io")
-pinecone_environment = "us-east-1"  # Provided AWS region
+# For your configuration, we are using AWS us-east-1
+pinecone_region = "us-east-1"
 
 # Ensure API keys are set
 if not api_key_openai or not api_key_pinecone:
@@ -27,9 +27,6 @@ if not api_key_openai or not api_key_pinecone:
 # ----------- Environment Setup -----------
 os.environ["OPENAI_API_KEY"] = api_key_openai
 os.environ["PINECONE_API_KEY"] = api_key_pinecone
-
-# Initialize Pinecone using the native SDK.
-pinecone.init(api_key=api_key_pinecone, environment=pinecone_environment, host=pinecone_host)
 
 # ----------- Document Processing Functions -----------
 def read_docs(directory):
@@ -123,13 +120,30 @@ def ask_model():
     docs = read_docs(directory)
     chunks = chunk_docs(docs)
 
-    # Create embeddings & Pinecone vectorstore.
+    # Create embeddings
     embeddings = get_embeddings()
-    vectorstore = LangChainPinecone.from_documents(
-        documents=chunks,
-        embedding=embeddings,
-        index_name=index_name
+
+    # Create Pinecone client instance using the new API
+    from pinecone import Pinecone, ServerlessSpec
+    pc = Pinecone(
+        api_key=api_key_pinecone,
+        host=pinecone_host,
+        spec=ServerlessSpec(cloud='aws', region=pinecone_region)
     )
+
+    # Retrieve the index instance from the Pinecone client
+    index = pc.Index(index_name)
+
+    # Manually build the vectorstore by providing the index instance.
+    # The LangChain wrapper expects a client of type pinecone.Index, so we bypass the
+    # internal creation using from_documents.
+    # Here we set text_key to "text" and leave namespace as None.
+    vectorstore = LangChainPinecone(index=index, embedding=embeddings, text_key="text", namespace=None)
+
+    # Prepare texts and metadata from chunks and add them to the vectorstore.
+    texts = [doc.page_content for doc in chunks]
+    metadatas = [doc.metadata for doc in chunks]
+    vectorstore.add_texts(texts, metadatas)
 
     # Create memory & chain
     memory = get_memory()
