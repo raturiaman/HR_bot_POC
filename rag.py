@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import time
+import pinecone
 
 # Updated imports for LangChain components
 from langchain_community.document_loaders import PyPDFDirectoryLoader
@@ -12,18 +13,16 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain.llms import OpenAI
 
-# Import the new official Pinecone package
-from pinecone import Pinecone, ServerlessSpec
-
 # ---------- Retrieve API keys and settings ----------
 # Try both lowercase and uppercase keys
-api_key_openai = st.secrets.get("api_key_openai") or st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
-api_key_pinecone = st.secrets.get("api_key_pinecone") or st.secrets.get("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY")
+api_key_openai = (st.secrets.get("api_key_openai") or 
+                  st.secrets.get("OPENAI_API_KEY") or 
+                  os.getenv("OPENAI_API_KEY"))
+api_key_pinecone = (st.secrets.get("api_key_pinecone") or 
+                    st.secrets.get("PINECONE_API_KEY") or 
+                    os.getenv("PINECONE_API_KEY"))
 directory = st.secrets.get("directory", os.getenv("directory", "./pdfs"))
 index_name = st.secrets.get("index_name", os.getenv("index_name", "hr-policies-index"))
-# Update the controller host to the AWS variant
-pinecone_controller_host = st.secrets.get("pinecone_controller_host", "https://controller.us-east-1-aws.pinecone.io")
-pinecone_region = "us-east-1"  # Adjust if needed
 
 if not api_key_openai or not api_key_pinecone:
     raise ValueError("Missing OpenAI or Pinecone API key. Check your secrets or environment variables.")
@@ -32,25 +31,18 @@ if not api_key_openai or not api_key_pinecone:
 os.environ["OPENAI_API_KEY"] = api_key_openai
 os.environ["PINECONE_API_KEY"] = api_key_pinecone
 
-# Initialize the Pinecone client using the controller endpoint
-pc = Pinecone(
-    api_key=api_key_pinecone,
-    host=pinecone_controller_host,
-    spec=ServerlessSpec(cloud='aws', region=pinecone_region)
-)
+# Initialize Pinecone using the new official client
+# For AWS Serverless in us-east-1, the recommended environment value is "us-east-1-aws"
+pinecone.init(api_key=api_key_pinecone, environment="us-east-1-aws")
 
-# Attempt to list indexes
-try:
-    existing_indexes = pc.list_indexes().names()
-    print("Existing indexes:", existing_indexes)
-except Exception as e:
-    raise Exception(f"Error listing indexes. Check your controller host '{pinecone_controller_host}' and API key. {e}")
-
+# List existing indexes
+existing_indexes = pinecone.list_indexes()
+print("Existing indexes:", existing_indexes)
 if index_name not in existing_indexes:
     raise Exception(f"Index '{index_name}' not found. Please create it in your Pinecone dashboard.")
 
-# Retrieve your existing index (query operations will use the proper endpoint configured in Pinecone)
-index = pc.Index(index_name)
+# Retrieve your existing index (query operations will use the proper endpoint automatically)
+index = pinecone.Index(index_name)
 
 # ----------- Document Processing Functions -----------
 def read_docs(directory):
