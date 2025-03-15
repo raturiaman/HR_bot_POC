@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import pinecone  # Use the native Pinecone SDK
 
 # UPDATED imports for the new version of LangChain
 from langchain_community.document_loaders import PyPDFDirectoryLoader
@@ -10,7 +11,6 @@ from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain.llms import OpenAI
-from pinecone import Pinecone
 
 # ---------- Settings (API Keys and Configurations from Streamlit Secrets) ---------
 api_key_openai = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
@@ -18,6 +18,7 @@ api_key_pinecone = st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KE
 directory = st.secrets.get("directory", os.getenv("PDF_DIRECTORY", "./pdfs"))
 index_name = st.secrets.get("index_name", "hr-policies-index")
 pinecone_host = st.secrets.get("pinecone_host", "https://hr-policies-index-gh700zo.svc.aped-4627-b74a.pinecone.io")
+pinecone_environment = "us-east-1"  # Provided AWS region
 
 # Ensure API keys are set
 if not api_key_openai or not api_key_pinecone:
@@ -26,6 +27,9 @@ if not api_key_openai or not api_key_pinecone:
 # ----------- Environment Setup -----------
 os.environ["OPENAI_API_KEY"] = api_key_openai
 os.environ["PINECONE_API_KEY"] = api_key_pinecone
+
+# Initialize Pinecone using the native SDK.
+pinecone.init(api_key=api_key_pinecone, environment=pinecone_environment, host=pinecone_host)
 
 # ----------- Document Processing Functions -----------
 def read_docs(directory):
@@ -119,10 +123,8 @@ def ask_model():
     docs = read_docs(directory)
     chunks = chunk_docs(docs)
 
-    # Create embeddings & Pinecone vectorstore
+    # Create embeddings & Pinecone vectorstore.
     embeddings = get_embeddings()
-    # Initialize Pinecone client with the provided host
-    pc = Pinecone(api_key=api_key_pinecone, host=pinecone_host)
     vectorstore = LangChainPinecone.from_documents(
         documents=chunks,
         embedding=embeddings,

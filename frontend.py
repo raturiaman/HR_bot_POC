@@ -11,7 +11,6 @@ Update on 23 Feb 2024 by Jugal:
 """
 
 import streamlit as st
-from pinecone import Pinecone  # Pinecone client import
 import rag  # Importing the RAG module
 
 # ----------------- Settings -------------------------
