@@ -21,7 +21,7 @@ api_key_openai = st.secrets.get("api_key_openai") or st.secrets.get("OPENAI_API_
 api_key_pinecone = st.secrets.get("api_key_pinecone") or st.secrets.get("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY")
 directory = st.secrets.get("directory", os.getenv("directory", "./pdfs"))
 index_name = st.secrets.get("index_name", os.getenv("index_name", "hr-policies-index"))
-# Use the controller host for management operations. Adjust if needed.
+# Set the controller host; try the AWS endpoint variant.
 pinecone_controller_host = st.secrets.get("pinecone_controller_host", "https://controller.us-east-1-aws.pinecone.io")
 pinecone_region = "us-east-1"  # Adjust if needed
 
@@ -39,17 +39,16 @@ pc = Pinecone(
     spec=ServerlessSpec(cloud='aws', region=pinecone_region)
 )
 
-# List existing indexes
+# Attempt to list indexes, but if that fails, log a warning and proceed.
 try:
     existing_indexes = pc.list_indexes().names()
     print("Existing indexes:", existing_indexes)
+    if index_name not in existing_indexes:
+        raise Exception(f"Index '{index_name}' not found. Please create it in your Pinecone dashboard.")
 except Exception as e:
-    raise Exception(f"Error listing indexes. Check your controller host '{pinecone_controller_host}' and API key. {e}")
+    print(f"Warning: Could not list indexes. Proceeding assuming index '{index_name}' exists. Error: {e}")
 
-if index_name not in existing_indexes:
-    raise Exception(f"Index '{index_name}' not found. Please create it in your Pinecone dashboard.")
-
-# Retrieve the existing index (query operations will use the proper endpoint automatically)
+# Retrieve your existing index (query operations will use the proper endpoint automatically)
 index = pc.Index(index_name)
 
 # ----------- Document Processing Functions -----------
@@ -169,7 +168,6 @@ def ask_model():
     metadatas = [chunk.metadata for chunk in chunks]
 
     # Build a Pinecone vectorstore using the retrieved index.
-    # "text_key" is set to "text" (adjust if needed) and namespace is None.
     vectorstore = LangChainPinecone(index=index, embedding=embeddings, text_key="text", namespace=None)
     vectorstore.add_texts(texts, metadatas)
 
