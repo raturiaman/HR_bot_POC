@@ -15,14 +15,14 @@ from langchain.llms import OpenAI
 # Import the new official Pinecone package
 from pinecone import Pinecone, ServerlessSpec
 
-# ---------- Retrieve API keys from secrets or environment variables ----------
+# ---------- Retrieve API keys and settings ----------
+# Try both lowercase and uppercase keys
 api_key_openai = st.secrets.get("api_key_openai") or st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
 api_key_pinecone = st.secrets.get("api_key_pinecone") or st.secrets.get("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY")
-
 directory = st.secrets.get("directory", os.getenv("directory", "./pdfs"))
 index_name = st.secrets.get("index_name", os.getenv("index_name", "hr-policies-index"))
-# Retrieve the controller host from secrets; default to the typical AWS controller endpoint.
-pinecone_controller_host = st.secrets.get("pinecone_controller_host", "https://controller.us-east-1-aws.pinecone.io")
+# Default to Option A for controller host; update your secret if Option B is needed.
+pinecone_controller_host = st.secrets.get("pinecone_controller_host", "https://controller.us-east-1.pinecone.io")
 pinecone_region = "us-east-1"  # Adjust if needed
 
 if not api_key_openai or not api_key_pinecone:
@@ -39,13 +39,17 @@ pc = Pinecone(
     spec=ServerlessSpec(cloud='aws', region=pinecone_region)
 )
 
-# Verify that the index exists
-existing_indexes = pc.list_indexes().names()
-print("Existing indexes:", existing_indexes)
+# Attempt to list indexes
+try:
+    existing_indexes = pc.list_indexes().names()
+    print("Existing indexes:", existing_indexes)
+except Exception as e:
+    raise Exception(f"Error listing indexes. Check your controller host '{pinecone_controller_host}' and API key. {e}")
+
 if index_name not in existing_indexes:
     raise Exception(f"Index '{index_name}' not found. Please create it in your Pinecone dashboard.")
 
-# Retrieve your existing index (query operations will use the correct endpoint)
+# Retrieve your existing index (query operations will use the proper endpoint configured in Pinecone)
 index = pc.Index(index_name)
 
 # ----------- Document Processing Functions -----------
