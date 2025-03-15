@@ -14,11 +14,11 @@ import streamlit as st
 import rag  # Import the updated RAG module using Pinecone
 
 # ----------------- Settings -------------------------
-api_key_openai = st.secrets.get("OPENAI_API_KEY", "")
+api_key_openai = st.secrets.get("api_key_openai", "")
 directory = st.secrets.get("directory", "./pdfs")
 
 if not api_key_openai:
-    raise ValueError("Missing OpenAI API key. Check secrets.toml or environment variables.")
+    raise ValueError("Missing OpenAI API key. Check your secrets or environment variables.")
 
 # Session state for chat messages
 if "messages" not in st.session_state:

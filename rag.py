@@ -16,13 +16,12 @@ from langchain.llms import OpenAI
 from pinecone import Pinecone, ServerlessSpec
 
 # ---------- Settings (API Keys and Configurations) ----------
-api_key_openai = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
-api_key_pinecone = st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KEY"))
-directory = st.secrets.get("directory", os.getenv("PDF_DIRECTORY", "./pdfs"))
-index_name = st.secrets.get("index_name", "hr-policies-index")
-# IMPORTANT: Use the controller endpoint for management calls, not the index endpoint.
-pinecone_controller_host = st.secrets.get("pinecone_controller_host", "https://controller.us-east-1.pinecone.io")
-# (You already have an index with host "https://hr-policies-index-gh700zo.svc.aped-4627-b74a.pinecone.io" for query)
+api_key_openai = st.secrets.get("api_key_openai", os.getenv("api_key_openai"))
+api_key_pinecone = st.secrets.get("api_key_pinecone", os.getenv("api_key_pinecone"))
+directory = st.secrets.get("directory", os.getenv("directory", "./pdfs"))
+index_name = st.secrets.get("index_name", os.getenv("index_name", "hr-policies-index"))
+# Retrieve the controller host from secrets; default to the typical AWS controller endpoint.
+pinecone_controller_host = st.secrets.get("pinecone_controller_host", "https://controller.us-east-1-aws.pinecone.io")
 pinecone_region = "us-east-1"  # Adjust if needed
 
 if not api_key_openai or not api_key_pinecone:
@@ -32,7 +31,7 @@ if not api_key_openai or not api_key_pinecone:
 os.environ["OPENAI_API_KEY"] = api_key_openai
 os.environ["PINECONE_API_KEY"] = api_key_pinecone
 
-# Initialize the Pinecone client using the new official package with the controller endpoint
+# Initialize the Pinecone client using the controller endpoint
 pc = Pinecone(
     api_key=api_key_pinecone,
     host=pinecone_controller_host,
@@ -45,7 +44,7 @@ print("Existing indexes:", existing_indexes)
 if index_name not in existing_indexes:
     raise Exception(f"Index '{index_name}' not found. Please create it in your Pinecone dashboard.")
 
-# Retrieve your existing index
+# Retrieve your existing index (query operations will use the correct endpoint)
 index = pc.Index(index_name)
 
 # ----------- Document Processing Functions -----------
