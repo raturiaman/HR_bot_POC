@@ -21,8 +21,8 @@ api_key_openai = st.secrets.get("api_key_openai") or st.secrets.get("OPENAI_API_
 api_key_pinecone = st.secrets.get("api_key_pinecone") or st.secrets.get("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY")
 directory = st.secrets.get("directory", os.getenv("directory", "./pdfs"))
 index_name = st.secrets.get("index_name", os.getenv("index_name", "hr-policies-index"))
-# Default to Option A for controller host; update your secret if Option B is needed.
-pinecone_controller_host = st.secrets.get("pinecone_controller_host", "https://controller.us-east-1.pinecone.io")
+# Update the controller host to the AWS variant
+pinecone_controller_host = st.secrets.get("pinecone_controller_host", "https://controller.us-east-1-aws.pinecone.io")
 pinecone_region = "us-east-1"  # Adjust if needed
 
 if not api_key_openai or not api_key_pinecone:

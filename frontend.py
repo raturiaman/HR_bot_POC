@@ -18,7 +18,7 @@ api_key_openai = st.secrets.get("api_key_openai") or st.secrets.get("OPENAI_API_
 directory = st.secrets.get("directory", "./pdfs")
 
 if not api_key_openai:
-    raise ValueError("Missing OpenAI API key. Check your secrets or environment variables.")
+    raise ValueError("Missing OpenAI API key. Check secrets or environment variables.")
 
 # Session state for chat messages
 if "messages" not in st.session_state:
