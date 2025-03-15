@@ -14,7 +14,7 @@ import streamlit as st
 import rag  # Import the updated RAG module using Pinecone
 
 # ----------------- Settings -------------------------
-api_key_openai = st.secrets.get("api_key_openai", "")
+api_key_openai = st.secrets.get("api_key_openai") or st.secrets.get("OPENAI_API_KEY")
 directory = st.secrets.get("directory", "./pdfs")
 
 if not api_key_openai:

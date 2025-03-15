@@ -15,9 +15,10 @@ from langchain.llms import OpenAI
 # Import the new official Pinecone package
 from pinecone import Pinecone, ServerlessSpec
 
-# ---------- Settings (API Keys and Configurations) ----------
-api_key_openai = st.secrets.get("api_key_openai", os.getenv("api_key_openai"))
-api_key_pinecone = st.secrets.get("api_key_pinecone", os.getenv("api_key_pinecone"))
+# ---------- Retrieve API keys from secrets or environment variables ----------
+api_key_openai = st.secrets.get("api_key_openai") or st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+api_key_pinecone = st.secrets.get("api_key_pinecone") or st.secrets.get("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY")
+
 directory = st.secrets.get("directory", os.getenv("directory", "./pdfs"))
 index_name = st.secrets.get("index_name", os.getenv("index_name", "hr-policies-index"))
 # Retrieve the controller host from secrets; default to the typical AWS controller endpoint.
