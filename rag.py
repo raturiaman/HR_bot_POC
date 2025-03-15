@@ -35,7 +35,11 @@ def chunk_docs(documents, chunk_size=800, chunk_overlap=50):
     chunks = splitter.split_documents(documents)
     if not chunks:
         raise ValueError("No document chunks produced. Check your documents and chunking parameters.")
-    return chunks
+    # Filter out chunks with empty content
+    filtered_chunks = [chunk for chunk in chunks if chunk.page_content.strip()]
+    if not filtered_chunks:
+        raise ValueError("No non-empty document chunks produced. Check your PDFs and chunking parameters.")
+    return filtered_chunks
 
 def get_embeddings():
     """
@@ -120,7 +124,7 @@ def ask_model():
     # Create embeddings
     embeddings = get_embeddings()
 
-    # Build a FAISS vectorstore from the document chunks
+    # Build a FAISS vectorstore from the non-empty document chunks
     vectorstore = FAISS.from_documents(documents=chunks, embedding=embeddings)
 
     # Create memory & chain
