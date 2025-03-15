@@ -1,13 +1,11 @@
-import os  # Add this import
-
+import os
 import streamlit as st
-from pinecone import Pinecone
-import rag  # Importing the RAG module
+import rag  # Make sure your rag module has ask_model() and perform_query() functions
 
 ############################################
 #             SETTINGS                    #
 ############################################
-# Access secrets from Streamlit Cloud
+# Access secrets from Streamlit Cloud (from your secrets.toml)
 api_key_openai = st.secrets["OPENAI_API_KEY"]
 api_key_pinecone = st.secrets["PINECONE_API_KEY"]
 directory = st.secrets["directory"]
@@ -17,7 +15,7 @@ if not api_key_openai or not api_key_pinecone:
     st.error("Missing OpenAI or Pinecone API key. Check secrets.toml.")
     st.stop()
 
-# Initialize session state for messages
+# Initialize session state for messages if not present
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
 
@@ -29,6 +27,7 @@ def generate_response(input_data_query):
     Calls the RAG module to process the query and return the response.
     """
     try:
+        # Initialize the chain using the RAG module (custom implementation)
         chain = rag.ask_model()
         output = rag.perform_query(chain, input_data_query)
         return output["answer"]
@@ -71,7 +70,6 @@ initial_prompts = {
     "last_update": "When was the Human Rights Policy last updated?"
 }
 
-# Display initial prompts as buttons
 st.write("### Quick Prompts")
 col1, col2 = st.columns(2)
 with col1:
@@ -108,7 +106,8 @@ def user_query():
         st.session_state["messages"].append({"role": "user", "content": prompt})
         answer = generate_response(prompt)
         st.session_state["messages"].append({"role": "assistant", "content": answer})
-        st.session_state["messages"] = st.session_state["messages"][-100:]  # Limit messages for memory management
+        # Limit message history for better performance
+        st.session_state["messages"] = st.session_state["messages"][-100:]
         display_messages()
 
 # Listen for user-typed questions
@@ -117,4 +116,4 @@ user_query()
 # Add a "Clear Chat" button
 if st.button("Clear Chat"):
     st.session_state["messages"] = []
-    st.rerun()  # Updated from st.experimental_rerun() to st.rerun()
+    st.rerun()

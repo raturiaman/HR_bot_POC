@@ -1,4 +1,4 @@
-import os  # Add this import
+import os
 import streamlit as st
 from pinecone import Pinecone, ServerlessSpec
 from langchain_community.document_loaders import PyPDFDirectoryLoader
@@ -26,13 +26,12 @@ if not api_key_openai or not api_key_pinecone:
 ############################################
 pc = Pinecone(api_key=api_key_pinecone)
 
-# Ensure index exists
+# Ensure the index exists; if not, create it
 existing_indexes = [index_info.name for index_info in pc.list_indexes()]
 if index_name not in existing_indexes:
-    # Create the index if it doesn't exist
     pc.create_index(
         name=index_name,
-        dimension=1536,  # Match the dimension of OpenAI embeddings
+        dimension=1536,  # Ensure this matches the embedding model's output dimension
         metric="cosine",
         spec=ServerlessSpec(
             cloud="aws",
@@ -40,14 +39,16 @@ if index_name not in existing_indexes:
         )
     )
 
-# Fetch the Pinecone index
+# Get the Pinecone index instance
 index = pc.Index(index_name)
 
 ############################################
 #        DOCUMENT PROCESSING FUNCTIONS    #
 ############################################
 def read_docs(directory):
-    """Load all PDFs in the given directory."""
+    """
+    Load all PDF documents from the specified directory.
+    """
     if not os.path.exists(directory):
         raise ValueError(f"Directory '{directory}' does not exist.")
     loader = PyPDFDirectoryLoader(directory)
@@ -57,7 +58,9 @@ def read_docs(directory):
     return documents
 
 def chunk_docs(documents, chunk_size=800, chunk_overlap=50):
-    """Split documents into smaller chunks for embedding."""
+    """
+    Split documents into smaller chunks for embedding.
+    """
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap
@@ -65,14 +68,18 @@ def chunk_docs(documents, chunk_size=800, chunk_overlap=50):
     return splitter.split_documents(documents)
 
 def get_embeddings():
-    """Return OpenAI embeddings for text encoding."""
-    return OpenAIEmbeddings(model="text-embedding-3-small")  # Use OpenAI's text-embedding-3-small
+    """
+    Return OpenAI embeddings for text encoding.
+    """
+    return OpenAIEmbeddings(model="text-embedding-3-small")
 
 ############################################
 #         MEMORY INITIALIZATION           #
 ############################################
 def get_memory():
-    """Use conversation buffer memory with a window of 5 messages."""
+    """
+    Use conversation buffer memory with a window of 5 messages.
+    """
     if "memory" not in st.session_state:
         st.session_state["memory"] = ConversationBufferWindowMemory(
             memory_key="chat_history",
@@ -105,9 +112,11 @@ qa_prompt = PromptTemplate(template=qa_template, input_variables=["context", "qu
 #       RETRIEVAL CHAIN CREATION          #
 ############################################
 def create_chain(vectorstore, memory):
-    """Build a ConversationalRetrievalChain using an OpenAI LLM."""
+    """
+    Build a ConversationalRetrievalChain using an OpenAI LLM.
+    """
     chain = ConversationalRetrievalChain.from_llm(
-        llm=OpenAI(),
+        llm=OpenAI(api_key=api_key_openai),
         retriever=vectorstore.as_retriever(search_kwargs={"k": 3}),
         memory=memory,
         chain_type_kwargs={"prompt": qa_prompt},
@@ -120,29 +129,30 @@ def create_chain(vectorstore, memory):
 ############################################
 def ask_model():
     """
-    1. Load & chunk the PDF(s) from 'directory'.
-    2. Create embeddings.
-    3. Connect to Pinecone with the correct environment.
-    4. Create or update the index with from_documents.
-    5. Return a retrieval chain.
+    1. Load and chunk the PDF(s) from the given directory.
+    2. Create embeddings for the document chunks.
+    3. Connect to Pinecone and update the index.
+    4. Create and return a retrieval chain.
     """
     try:
-        # Load & chunk
+        # Load documents and split into chunks
         docs = read_docs(directory)
         chunks = chunk_docs(docs)
-
-        # Embeddings
+        
+        # Initialize embeddings
         embeddings = get_embeddings()
-
-        # Build LangChain Pinecone vectorstore
+        
+        # Build the LangChain Pinecone vectorstore from document chunks
         vectorstore = LangChainPinecone.from_documents(
             documents=chunks,
             embedding=embeddings,
             index=index
         )
-
-        # Create chain with memory
+        
+        # Retrieve conversation memory
         memory = get_memory()
+        
+        # Create and return the retrieval chain
         chain = create_chain(vectorstore, memory)
         return chain
     except Exception as e:
@@ -152,7 +162,9 @@ def ask_model():
 #        PERFORM RETRIEVAL FUNCTION       #
 ############################################
 def perform_query(chain, query):
-    """Call the chain with the user's query; returns the chain's result."""
+    """
+    Call the retrieval chain with the user's query and return the chain's result.
+    """
     try:
         result = chain({"question": query})
         return result
