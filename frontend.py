@@ -11,7 +11,7 @@ Update on 23 Feb 2024 by Jugal:
 """
 
 import streamlit as st
-import rag  # Import the updated RAG module
+import rag  # Import the RAG module using Pinecone
 
 # ----------------- Settings -------------------------
 api_key_openai = st.secrets.get("OPENAI_API_KEY", "")
@@ -30,8 +30,7 @@ if "chain" not in st.session_state:
 
 def generate_response(input_data_query):
     """
-    This function calls the RAG (Retrieval-Augmented Generation) module functions
-    to get the result from the chain for the user query.
+    Calls the RAG module to get the result from the chain for the user query.
     """
     chain = st.session_state["chain"]
     output = rag.perform_query(chain, input_data_query)
