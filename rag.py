@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 
-# Updated imports for LangChain
+# Updated imports for LangChain components
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import OpenAIEmbeddings
@@ -11,7 +11,7 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain.llms import OpenAI
 
-# Import the new Pinecone client API
+# Import the new official Pinecone package
 from pinecone import Pinecone, ServerlessSpec
 
 # ---------- Settings (API Keys and Configurations) ----------
@@ -20,7 +20,7 @@ api_key_pinecone = st.secrets.get("PINECONE_API_KEY", os.getenv("PINECONE_API_KE
 directory = st.secrets.get("directory", os.getenv("PDF_DIRECTORY", "./pdfs"))
 index_name = st.secrets.get("index_name", "hr-policies-index")
 pinecone_host = st.secrets.get("pinecone_host", "https://hr-policies-index-gh700zo.svc.aped-4627-b74a.pinecone.io")
-pinecone_region = "us-east-1"  # Adjust if needed
+pinecone_region = "us-east-1"  # Update if needed
 
 if not api_key_openai or not api_key_pinecone:
     raise ValueError("Missing OpenAI or Pinecone API key. Check your secrets or environment variables.")
@@ -29,7 +29,7 @@ if not api_key_openai or not api_key_pinecone:
 os.environ["OPENAI_API_KEY"] = api_key_openai
 os.environ["PINECONE_API_KEY"] = api_key_pinecone
 
-# Initialize Pinecone client using the new API
+# Initialize the Pinecone client using the new official package
 pc = Pinecone(
     api_key=api_key_pinecone,
     host=pinecone_host,
@@ -55,12 +55,12 @@ def read_docs(directory):
 def chunk_docs(documents, chunk_size=400, chunk_overlap=20):
     """
     Split documents into chunks.
-    Using a smaller chunk size and overlap in case the document text is short.
+    Using a smaller chunk size in case the document text is short.
     """
     splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     chunks = splitter.split_documents(documents)
     print(f"Created {len(chunks)} chunk(s) from the documents.")
-    # Filter out any empty chunks
+    # Filter out empty chunks
     filtered_chunks = [chunk for chunk in chunks if chunk.page_content.strip()]
     print(f"Filtered to {len(filtered_chunks)} non-empty chunk(s).")
     if not filtered_chunks:
@@ -77,8 +77,8 @@ def get_embeddings():
 # ----------- Memory Initialization -----------
 def get_memory():
     """
-    Use a conversation buffer with window memory (last 5 messages).
-    Stored in st.session_state to persist across interactions.
+    Use conversation buffer with window memory (last 5 messages).
+    This memory is stored in st.session_state to persist across interactions.
     """
     if "memory" not in st.session_state:
         st.session_state["memory"] = ConversationBufferWindowMemory(
@@ -143,7 +143,7 @@ def ask_model():
     3) Create memory & retrieval chain.
     4) Return chain for question-answer usage.
     """
-    # Load and chunk docs
+    # Load and chunk documents
     docs = read_docs(directory)
     chunks = chunk_docs(docs)
 
@@ -155,7 +155,7 @@ def ask_model():
     metadatas = [chunk.metadata for chunk in chunks]
 
     # Build a Pinecone vectorstore using the retrieved index.
-    # "text_key" is set to "text" (adjust if needed) and namespace is set to None.
+    # "text_key" is set to "text" (adjust if needed) and namespace is None.
     vectorstore = LangChainPinecone(index=index, embedding=embeddings, text_key="text", namespace=None)
     vectorstore.add_texts(texts, metadatas)
 
@@ -168,7 +168,6 @@ def ask_model():
 def perform_query(chain, query):
     """
     Provide the user query to the chain and return the structured result.
-    Access the final answer as result["answer"].
     """
     result = chain({"question": query})
     return result

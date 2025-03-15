@@ -11,7 +11,7 @@ Update on 23 Feb 2024 by Jugal:
 """
 
 import streamlit as st
-import rag  # Import the RAG module using Pinecone
+import rag  # Import the updated RAG module using Pinecone
 
 # ----------------- Settings -------------------------
 api_key_openai = st.secrets.get("OPENAI_API_KEY", "")
